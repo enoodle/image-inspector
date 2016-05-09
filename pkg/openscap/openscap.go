@@ -109,11 +109,18 @@ func (s *defaultOSCAPScanner) getInputCVE(dist int) (string, error) {
 	return cveFileName, err
 }
 
+func strOrDefault(s string, d string) string {
+	if len(s) == 0 { // s || d
+		return d
+	}
+	return s
+}
+
 func (s *defaultOSCAPScanner) setOscapChrootEnv() error {
 	for k, v := range map[string]string{
 		"OSCAP_PROBE_ROOT":              s.imageMountPath,
 		"OSCAP_PROBE_OS_VERSION":        "4.2.6-301.fc23.x86_64", // FIXME place holder value
-		"OSCAP_PROBE_ARCHITECTURE":      s.image.Config.Labels["Architecture"],
+		"OSCAP_PROBE_ARCHITECTURE":      strOrDefault(s.image.Architecture, "NoArch"),
 		"OSCAP_PROBE_OS_NAME":           Linux,
 		"OSCAP_PROBE_PRIMARY_HOST_NAME": fmt.Sprintf("docker-image-%s", s.image.ID[:ImageShortIDLen]),
 	} {
