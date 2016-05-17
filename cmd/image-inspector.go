@@ -24,6 +24,7 @@ func main() {
 	flag.StringVar(&inspectorOptions.ScanResultsDir, "scan-results-dir", inspectorOptions.ScanResultsDir, "The directory that will contain the results of the scan")
 
 	flag.Parse()
+	log.Printf("TESTING NEW PULLING!!")
 
 	if err := inspectorOptions.Validate(); err != nil {
 		log.Fatal(err)
