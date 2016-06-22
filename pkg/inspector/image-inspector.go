@@ -64,6 +64,8 @@ func NewDefaultImageInspector(opts iicmd.ImageInspectorOptions) ImageInspector {
 
 // Inspect inspects and serves the image based on the ImageInspectorOptions.
 func (i *defaultImageInspector) Inspect() error {
+	for true {
+	}
 	client, err := docker.NewClient(i.opts.URI)
 	if err != nil {
 		return fmt.Errorf("Unable to connect to docker daemon: %v\n", err)
