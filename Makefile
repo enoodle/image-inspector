@@ -9,12 +9,19 @@
 OUT_DIR = _output
 OUT_PKG_DIR = Godeps/_workspace/pkg
 
+# Vendor packages from vendor.conf to vendor/
+# make deps
+deps:
+	go get -u github.com/LK4D4/vndr
+	vndr
+
+
 # Build code.
 #
 # Example:
 #   make
 #   make all
-all build:
+all build: deps
 	hack/build-go.sh
 .PHONY: all build
 
