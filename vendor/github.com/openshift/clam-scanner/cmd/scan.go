@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -84,11 +85,11 @@ func (o *ClamScanOptions) Complete() error {
 // Validate performs validation on options for the scan command.
 func (o *ClamScanOptions) Validate() error {
 	if len(o.Path) == 0 {
-		return fmt.Errorf("Please specify a path to scan.")
+		return errors.New("please specify a path to scan")
 	}
 
 	if len(o.Socket) == 0 {
-		return fmt.Errorf("Please specify the socket for clamd.")
+		return errors.New("please specify the socket for clamd")
 	}
 
 	return nil

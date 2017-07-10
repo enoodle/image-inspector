@@ -8,6 +8,22 @@ import (
 
 var html *TNode = example()
 
+func TestCompile(t *testing.T) {
+	var err error
+	_, err = Compile("//a")
+	if err != nil {
+		t.Fatalf("//a should be correct but got error %s", err)
+	}
+	_, err = Compile("//a[id=']/span")
+	if err == nil {
+		t.Fatal("//a[id=] should be got correct but is nil")
+	}
+	_, err = Compile("//ul/li/@class")
+	if err != nil {
+		t.Fatalf("//ul/li/@class should be correct but got error %s", err)
+	}
+}
+
 func TestSelf(t *testing.T) {
 	testXPath(t, html, ".", "html")
 	testXPath(t, html.FirstChild, ".", "head")
@@ -178,6 +194,38 @@ func TestFunction(t *testing.T) {
 	testXPath2(t, html, "//li/a[not(@id='1')]", 2) //  //li/a[@id!=1]
 	testXPath2(t, html, "//h1[string-length(normalize-space(' abc ')) = 3]", 1)
 	testXPath2(t, html, "//h1[string-length(normalize-space(self::text())) = 12]", 1)
+	testXPath2(t, html, "//ul[count(li)=4]", 1)
+	if MustCompile("sum(1+2)").Evaluate(createNavigator(html)).(float64) != 3 { // 1+2+3
+		t.Fatal("sum(1+2) != 3")
+	}
+	if MustCompile("sum(//a/@id)").Evaluate(createNavigator(html)).(float64) != 6 { // 1+2+3
+		t.Fatal("sum(//a/@id) != 6")
+	}
+	if MustCompile(`concat("1","2","3")`).Evaluate(createNavigator(html)).(string) != "123" {
+		t.Fatal(`concat("1","2","3") != "123"`)
+	}
+
+	if MustCompile(`concat(" ",//a[@id='1']/@href," ")`).Evaluate(createNavigator(html)).(string) != " / " {
+		t.Fatal("concat()")
+	}
+}
+
+func TestEvaluate(t *testing.T) {
+	if MustCompile("count(//ul/li)").Evaluate(createNavigator(html)).(float64) != 4 {
+		t.Fatal("count(//ul/li) != 4")
+	}
+	if iter, ok := MustCompile("//html/@lang").Evaluate(createNavigator(html)).(*NodeIterator); ok {
+		iter.MoveNext()
+		if iter.Current().Value() != "en" {
+			t.Fatal("//html/@lang value not equal en")
+		}
+	}
+	if iter, ok := MustCompile("//title/text()").Evaluate(createNavigator(html)).(*NodeIterator); ok {
+		iter.MoveNext()
+		if iter.Current().Value() != "Hello" {
+			t.Fatal("//title/text() != Hello")
+		}
+	}
 }
 
 func TestOperationOrLogical(t *testing.T) {
