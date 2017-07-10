@@ -48,9 +48,3 @@ verify: build
 test-unit:
 	GOTEST_FLAGS="$(TESTFLAGS)" hack/test-go.sh $(WHAT) $(TESTS)
 .PHONY: test-unit
-
-# Install travis dependencies
-#
-install-travis:
-	hack/install-tools.sh
-.PHONY: install-travis

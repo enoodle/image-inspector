@@ -1,12 +1,10 @@
 language: go
 
 go:
-  - 1.6
   - 1.7
 
 install:
   - export PATH=$GOPATH/bin:./_tools/etcd/bin:$PATH
-  - make install-travis
 
 script:
   - make verify test-unit
