@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+
 	"testing"
 
 	docker "github.com/fsouza/go-dockerclient"
