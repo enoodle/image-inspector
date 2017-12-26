@@ -55,12 +55,13 @@ type ImageInspector interface {
 type defaultImageInspector struct {
 	opts iicmd.ImageInspectorOptions
 	meta iiapi.InspectorMetadata
-	// an optional image server that will server content for inspection.
-	imageServer   apiserver.ImageServer
-	imageAcquirer iacq.ImageAcquirer
+
+	ImageServer    apiserver.ImageServer // an optional image server that will server content for inspection.
+	ImageAcquirer  iiapi.ImageAcquirer   // ImageAcquirer that will get the image that needs scanning
+	ScannerFactory iiapi.ScannerFactory  // ScannerFactory Will create the scanners to scan the image
 }
 
-func getAcquirer(opts *iicmd.ImageInspectorOptions) iacq.ImageAcquirer {
+func getAcquirer(opts *iicmd.ImageInspectorOptions) iiapi.ImageAcquirer {
 	if len(opts.Container) != 0 {
 		return iacq.NewDockerContainerImageAcquirer(opts.DockerSocket, opts.ScanContainerChanges)
 	}
@@ -88,6 +89,16 @@ func NewInspectorMetadata(imageMetadata *docker.Image) iiapi.InspectorMetadata {
 	}
 }
 
+func (i *defaultImageInspector) CreateScanner(scannerType string) (iiapi.Scanner, error) {
+	switch scannerType {
+	case "openscap":
+		return openscap.NewDefaultScanner(OSCAP_CVE_DIR, i.opts.ScanResultsDir, i.opts.CVEUrlPath, i.opts.OpenScapHTML), nil
+	case "clamav":
+		return clamav.NewScanner(i.opts.ClamSocket)
+	}
+	return nil, fmt.Errorf("Unknown type of scanner")
+}
+
 // NewDefaultImageInspector provides a new default inspector.
 func NewDefaultImageInspector(opts iicmd.ImageInspectorOptions) ImageInspector {
 	inspector := &defaultImageInspector{
@@ -112,9 +123,23 @@ func NewDefaultImageInspector(opts iicmd.ImageInspectorOptions) ImageInspector {
 			AuthToken:         opts.AuthToken,
 			Chroot:            opts.Chroot,
 		}
-		inspector.imageServer = apiserver.NewWebdavImageServer(imageServerOpts)
+		if nil == opts.ImageServer {
+			inspector.ImageServer = apiserver.NewWebdavImageServer(imageServerOpts)
+		} else {
+			inspector.ImageServer = opts.ImageServer
+		}
 	}
-	inspector.imageAcquirer = getAcquirer(&opts)
+	if nil == opts.ImageAcquirer {
+		inspector.ImageAcquirer = getAcquirer(&opts)
+	} else {
+		inspector.ImageAcquirer = opts.ImageAcquirer
+	}
+	if nil == opts.ScannerFactory {
+		inspector.ScannerFactory = inspector
+	} else {
+		inspector.ScannerFactory = opts.ScannerFactory
+	}
+
 	return inspector
 }
 
@@ -137,13 +162,16 @@ func (i *defaultImageInspector) Inspect() error {
 	} else {
 		source = i.opts.Image
 	}
-	i.opts.DstPath, i.meta.Image, scanResults, filterFn, err = i.imageAcquirer.Acquire(source)
+	i.opts.DstPath, i.meta.Image, scanResults, filterFn, err = i.ImageAcquirer.Acquire(source)
 	if err != nil {
 		i.meta.ImageAcquireSuccess = false
 		i.meta.ImageAcquireError = err.Error()
 	} else {
 		i.meta.ImageAcquireSuccess = true
 
+		if scanner, err = i.ScannerFactory.CreateScanner(i.opts.ScanType); err != nil {
+			return fmt.Errorf("failed to initialize %s scanner: %v", i.opts.ScanType, err)
+		}
 		switch i.opts.ScanType {
 		case "openscap":
 			if i.opts.ScanResultsDir, err = util.CreateOutputDir(i.opts.ScanResultsDir, "image-inspector-scan-results-"); err != nil {
@@ -153,7 +181,6 @@ func (i *defaultImageInspector) Inspect() error {
 				results   []iiapi.Result
 				reportObj interface{}
 			)
-			scanner = openscap.NewDefaultScanner(OSCAP_CVE_DIR, i.opts.ScanResultsDir, i.opts.CVEUrlPath, i.opts.OpenScapHTML)
 			results, reportObj, err = scanner.Scan(ctx, i.opts.DstPath, &i.meta.Image, filterFn)
 			if err != nil {
 				i.meta.OpenSCAP.SetError(err)
@@ -167,10 +194,6 @@ func (i *defaultImageInspector) Inspect() error {
 			}
 
 		case "clamav":
-			scanner, err = clamav.NewScanner(i.opts.ClamSocket)
-			if err != nil {
-				return fmt.Errorf("failed to initialize clamav scanner: %v", err)
-			}
 			results, _, err := scanner.Scan(ctx, i.opts.DstPath, &i.meta.Image, filterFn)
 			if err != nil {
 				log.Printf("DEBUG: Unable to scan image %q with ClamAV: %v", i.opts.Image, err)
@@ -190,11 +213,11 @@ func (i *defaultImageInspector) Inspect() error {
 		}
 	}
 
-	if i.imageServer != nil {
+	if i.ImageServer != nil {
 		if i.meta.ImageAcquireSuccess {
-			return i.imageServer.ServeImage(&i.meta, i.opts.DstPath, scanResults, scanReport, htmlScanReport)
+			return i.ImageServer.ServeImage(&i.meta, i.opts.DstPath, scanResults, scanReport, htmlScanReport)
 		} else {
-			return i.imageServer.ServeImage(&i.meta, "", iiapi.ScanResult{}, nil, nil)
+			return i.ImageServer.ServeImage(&i.meta, "", iiapi.ScanResult{}, nil, nil)
 		}
 	}
 

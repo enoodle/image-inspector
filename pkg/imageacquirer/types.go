@@ -1,16 +1,9 @@
 package imageacquirer
 
 import (
-	docker "github.com/fsouza/go-dockerclient"
 	iiapi "github.com/openshift/image-inspector/pkg/api"
 	iicmd "github.com/openshift/image-inspector/pkg/cmd"
 )
-
-// ImageAcquirer abstract getting an image and extracting it in a given directory
-type ImageAcquirer interface {
-	// Acquire gets the image from `source` and extract it in `dest` which is the first output
-	Acquire(source string) (string, docker.Image, iiapi.ScanResult, iiapi.FilesFilter, error)
-}
 
 // AuthsOptions is a struct to hold options to retrieve authentication credentials to registries and services.
 type AuthsOptions struct {
@@ -26,14 +19,14 @@ type AuthsOptions struct {
 func NewDockerImageAcquirer(dockerSocket string,
 	preferedDestination string,
 	pullPolicy string,
-	auths AuthsOptions) ImageAcquirer {
+	auths AuthsOptions) iiapi.ImageAcquirer {
 	return &dockerImageAcquirer{dockerSocket, preferedDestination, pullPolicy, auths}
 }
 
-func NewContainerLibImageAcquirer(dstPath string, registryCertPath string, auths AuthsOptions) ImageAcquirer {
+func NewContainerLibImageAcquirer(dstPath string, registryCertPath string, auths AuthsOptions) iiapi.ImageAcquirer {
 	return &containerLibImageAcquirer{dstPath, registryCertPath, auths}
 }
 
-func NewDockerContainerImageAcquirer(dockerSocket string, scanContainerChanges bool) ImageAcquirer {
+func NewDockerContainerImageAcquirer(dockerSocket string, scanContainerChanges bool) iiapi.ImageAcquirer {
 	return &dockerContainerImageAcquirer{dockerSocket, scanContainerChanges}
 }
