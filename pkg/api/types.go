@@ -118,3 +118,14 @@ type Scanner interface {
 	// Name is the scanner's name
 	Name() string
 }
+
+// ScannerFactory can create Scanner's from a string that supposes to be their type.
+type ScannerFactory interface {
+	CreateScanner(string) (Scanner, error)
+}
+
+// ImageAcquirer abstract getting an image and extracting it in a given directory
+type ImageAcquirer interface {
+	// Acquire gets the image from `source` and extract it in `dest` which is the first output
+	Acquire(source string) (string, docker.Image, ScanResult, FilesFilter, error)
+}

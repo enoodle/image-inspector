@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	apiserver "github.com/openshift/image-inspector/pkg/imageserver"
 	oscapscanner "github.com/openshift/image-inspector/pkg/openscap"
 
 	iiapi "github.com/openshift/image-inspector/pkg/api"
@@ -78,6 +79,13 @@ type ImageInspectorOptions struct {
 	AuthTokenFile string
 	// PullPolicy controls whether we try to pull the inspected image
 	PullPolicy string
+
+	// an optional image server that will server content for inspection.
+	ImageServer apiserver.ImageServer
+	// ImageAcquirer that will get the image that needs scanning
+	ImageAcquirer iiapi.ImageAcquirer
+	// ScannerFactory Will create the scanners to scan the image
+	ScannerFactory iiapi.ScannerFactory
 }
 
 // NewDefaultImageInspectorOptions provides a new ImageInspectorOptions with default values.
