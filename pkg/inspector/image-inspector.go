@@ -161,8 +161,10 @@ func (i *defaultImageInspector) Inspect() error {
 	}
 	i.opts.DstPath, i.meta.Image, scanResults, filterFn, err = i.ImageAcquirer.Acquire(source)
 	if err != nil {
-		return nil
+		i.meta.ImageAcquireSuccess = false
+		i.meta.ImageAcquireError = err.Error()
 	} else {
+		i.meta.ImageAcquireSuccess = true
 
 		if scanner, err = i.ScannerFactory.CreateScanner(i.opts.ScanType); err != nil {
 			return fmt.Errorf("failed to initialize %s scanner: %v", i.opts.ScanType, err)
@@ -209,7 +211,11 @@ func (i *defaultImageInspector) Inspect() error {
 	}
 
 	if i.ImageServer != nil {
-		return i.ImageServer.ServeImage(&i.meta, i.opts.DstPath, scanResults, scanReport, htmlScanReport)
+		if i.meta.ImageAcquireSuccess {
+			return i.ImageServer.ServeImage(&i.meta, i.opts.DstPath, scanResults, scanReport, htmlScanReport)
+		} else {
+			return i.ImageServer.ServeImage(&i.meta, "", iiapi.ScanResult{}, nil, nil)
+		}
 	}
 
 	return nil
