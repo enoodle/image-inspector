@@ -37,7 +37,7 @@ func NewScanner(socket string) (api.Scanner, error) {
 }
 
 // Scan will scan the image
-func (s *ClamScanner) Scan(ctx context.Context, path string, image *docker.Image, filter api.FilesFilter) ([]api.Result, interface{}, error) {
+func (s *ClamScanner) Scan(ctx context.Context, path string, image *docker.Image, filter api.FilesFilter) (api.ScanOutputs, error) {
 	scanResults := []api.Result{}
 	// Useful for debugging
 	scanStarted := time.Now()
@@ -45,7 +45,7 @@ func (s *ClamScanner) Scan(ctx context.Context, path string, image *docker.Image
 		log.Printf("clamav scan took %ds (%d problems found)", int64(time.Since(scanStarted).Seconds()), len(scanResults))
 	}()
 	if err := s.clamd.ScanPath(ctx, path, clamav.FilterFiles(filter)); err != nil {
-		return nil, nil, err
+		return api.ScanOutputs{}, err
 	}
 	s.clamd.WaitTillDone()
 	defer s.clamd.Close()
@@ -63,7 +63,7 @@ func (s *ClamScanner) Scan(ctx context.Context, path string, image *docker.Image
 		scanResults = append(scanResults, r)
 	}
 
-	return scanResults, nil, nil
+	return api.ScanOutputs{ScanResults: api.ScanResult{Results: scanResults}}, nil
 }
 
 func (s *ClamScanner) Name() string {

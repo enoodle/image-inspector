@@ -60,13 +60,6 @@ type ImageInspector interface {
 	Inspect() error
 }
 
-// scanOutputs is a struct to hold all the scan outputs that needs to be served
-type scanOutputs struct {
-	ScanReport     []byte
-	HtmlScanReport []byte
-	ScanResults    iiapi.ScanResult
-}
-
 // defaultImageInspector is the default implementation of ImageInspector.
 type defaultImageInspector struct {
 	opts iicmd.ImageInspectorOptions
@@ -74,7 +67,7 @@ type defaultImageInspector struct {
 	// an optional image server that will server content for inspection.
 	imageServer apiserver.ImageServer
 
-	scanOutputs scanOutputs
+	scanOutputs iiapi.ScanOutputs
 }
 
 // NewInspectorMetadata returns a new InspectorMetadata out of *docker.Image
@@ -179,20 +172,16 @@ func (i *defaultImageInspector) acquireAndScan() error {
 			return err
 		}
 		var (
-			results   []iiapi.Result
-			reportObj interface{}
+			outputs iiapi.ScanOutputs
 		)
 		scanner = openscap.NewDefaultScanner(OSCAP_CVE_DIR, i.opts.ScanResultsDir, i.opts.CVEUrlPath, i.opts.OpenScapHTML)
-		results, reportObj, err = scanner.Scan(ctx, i.opts.DstPath, &i.meta.Image, filterFn)
+		outputs, err = scanner.Scan(ctx, i.opts.DstPath, &i.meta.Image, filterFn)
 		if err != nil {
 			i.meta.OpenSCAP.SetError(err)
 			log.Printf("DEBUG: Unable to scan image %q with OpenSCAP: %v", i.opts.Image, err)
 		} else {
 			i.meta.OpenSCAP.Status = iiapi.StatusSuccess
-			report := reportObj.(openscap.OpenSCAPReport)
-			i.scanOutputs.ScanReport = report.ArfBytes
-			i.scanOutputs.HtmlScanReport = report.HTMLBytes
-			i.scanOutputs.ScanResults.Results = append(i.scanOutputs.ScanResults.Results, results...)
+			i.scanOutputs.AppendOutput(outputs)
 		}
 
 	case "clamav":
@@ -200,12 +189,12 @@ func (i *defaultImageInspector) acquireAndScan() error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize clamav scanner: %v", err)
 		}
-		results, _, err := scanner.Scan(ctx, i.opts.DstPath, &i.meta.Image, filterFn)
+		outputs, err := scanner.Scan(ctx, i.opts.DstPath, &i.meta.Image, filterFn)
 		if err != nil {
 			log.Printf("DEBUG: Unable to scan image %q with ClamAV: %v", i.opts.Image, err)
 			return err
 		}
-		i.scanOutputs.ScanResults.Results = append(i.scanOutputs.ScanResults.Results, results...)
+		i.scanOutputs.AppendOutput(outputs)
 
 	default:
 		return fmt.Errorf("unsupported scan type: %s", i.opts.ScanType)

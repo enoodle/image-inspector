@@ -110,12 +110,25 @@ type APIVersions struct {
 // FilesFilter desribes callback to filter files.
 type FilesFilter func(string, os.FileInfo) bool
 
+// scanOutputs is a struct to hold all the scan outputs that needs to be served
+type ScanOutputs struct {
+	ScanReport     []byte
+	HtmlScanReport []byte
+	ScanResults    ScanResult
+}
+
+func (so *ScanOutputs) AppendOutput(other ScanOutputs) {
+	so.ScanReport = append(so.ScanReport, other.ScanReport...)
+	so.HtmlScanReport = append(so.HtmlScanReport, other.HtmlScanReport...)
+	so.ScanResults.Results = append(so.ScanResults.Results, other.ScanResults.Results...)
+}
+
 // Scanner interface that all scanners should define.
 type Scanner interface {
 	// Scan will perform a scan on the given path for the given Image.
 	// It should return compacted results for JSON serialization and additionally scanner
 	// specific results with more details. The context object can be used to cancel the scanning process.
-	Scan(ctx context.Context, path string, image *docker.Image, filter FilesFilter) ([]Result, interface{}, error)
+	Scan(ctx context.Context, path string, image *docker.Image, filter FilesFilter) (ScanOutputs, error)
 
 	// Name is the scanner's name
 	Name() string
